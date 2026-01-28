@@ -2,3 +2,13 @@
 .env
 deploy/frenzynet-web@1.0.0
 deploy/vite
+
+# Node
+node_modules/
+web/node_modules/
+
+# Build output
+web/dist/
+
+# Env
+.env
