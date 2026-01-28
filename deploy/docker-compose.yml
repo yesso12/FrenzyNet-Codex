@@ -1,0 +1,93 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: frenzynet
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./deploy/schema.sql:/schema.sql:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d frenzynet"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    restart: unless-stopped
+    environment:
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=frenzynet;Username=postgres;Password=${POSTGRES_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ISSUER: frenzynet
+      JWT_AUDIENCE: frenzynet-web
+      WEB_ORIGIN: https://${DOMAIN}
+      WG_SCRIPT_PATH: /usr/local/bin/wg-manage.sh
+      WG_ENDPOINT: ${WG_ENDPOINT}
+      WG_SERVER_PUBLIC_KEY: ${WG_SERVER_PUBLIC_KEY}
+      WG_ADDRESS_POOL: ${WG_ADDRESS_POOL}
+      WG_ALLOWED_IPS: ${WG_ALLOWED_IPS}
+      WG_DNS: ${WG_DNS}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      ADMIN_USERNAME: ${ADMIN_USERNAME}
+    volumes:
+      - ./deploy/scripts/wg-manage.sh:/usr/local/bin/wg-manage.sh:ro
+      - /etc/wireguard:/etc/wireguard
+      - dataprotection:/var/data-protection
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+      args:
+        VITE_API_BASE_URL: /api
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    expose:
+      - "80"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  nginx:
+    image: nginx:1.27-bookworm
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+    volumes:
+      - ./deploy/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - /etc/ssl/cloudflare/origin.pem:/etc/ssl/cloudflare/origin.pem:ro
+      - /etc/ssl/cloudflare/origin.key:/etc/ssl/cloudflare/origin.key:ro
+    ports:
+      - "80:80"
+      - "443:443"
+
+volumes:
+  pgdata:
+  dataprotection:

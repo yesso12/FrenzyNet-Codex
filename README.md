@@ -47,3 +47,14 @@ then download WireGuard VPN configs.
 - Download WireGuard config
 - QR code support
 - Admin controls
+
+# Production checklist
+
+- [ ] Cloudflare origin certs mounted at `/etc/ssl/cloudflare/origin.pem` and `/etc/ssl/cloudflare/origin.key`
+- [ ] `JWT_SECRET` set to a long random string
+- [ ] `POSTGRES_PASSWORD` rotated and stored securely
+- [ ] `WG_SERVER_PUBLIC_KEY` set from `wg show wg0 public-key`
+- [ ] `WG_ADDRESS_POOL` configured and not overlapping existing subnets
+- [ ] `ADMIN_EMAIL`/`ADMIN_PASSWORD` set for first-run bootstrap
+- [ ] `wg0.conf` secured and backed up
+- [ ] WireGuard UDP port (51820) open to the internet

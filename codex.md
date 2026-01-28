@@ -30,3 +30,25 @@ Security:
 - Hash passwords
 - Do NOT permanently store private keys
 - Confirmation dialogs for destructive actions
+
+Billing & Limits
+
+- Implement per-user device limits (default 3)
+- Store device count per user
+- Block provisioning if limit exceeded
+- Admin can override limits
+- Add config for future billing tiers
+- UI must clearly show device usage
+- Do NOT integrate Stripe yet; only scaffold billing hooks
+
+🚨 LEGAL / SAFETY NOTE (REAL TALK)
+
+Before selling:
+
+Add Terms of Service
+Add Acceptable Use Policy
+Explicitly block:
+- torrents
+- scraping
+- resale
+- abuse

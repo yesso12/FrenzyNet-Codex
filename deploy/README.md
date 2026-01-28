@@ -1,0 +1,61 @@
+# Deployment
+
+## Environment
+
+Copy `.env.example` to `.env` and set values:
+
+- `DOMAIN`
+- `JWT_SECRET`
+- `POSTGRES_PASSWORD`
+- `WG_ENDPOINT`
+- `WG_SERVER_PUBLIC_KEY`
+- `WG_ADDRESS_POOL`
+- `WG_ALLOWED_IPS`
+- `WG_DNS`
+- `ADMIN_EMAIL`
+- `ADMIN_PASSWORD`
+
+## One-command deploy
+
+```bash
+./deploy/deploy.sh
+```
+
+The API is served under `https://frenzynets.com/api`.
+
+## Database schema
+
+The deploy script automatically applies `deploy/schema.sql`.
+You can re-apply manually if needed:
+
+```bash
+./deploy/scripts/bootstrap-db.sh
+```
+
+## WireGuard integration
+
+The API container mounts `/etc/wireguard` from the host and calls
+`/usr/local/bin/wg-manage.sh` to add/revoke peers. Ensure the host has:
+
+- `wg` and `wg-quick`
+- `jq` for JSON escaping
+- a `wg0.conf` configured
+
+`wg-manage.sh` appends new peers to `wg0.conf` and avoids storing private keys.
+
+## Cloudflare DNS records
+
+- `frenzynets.com` → proxied (orange cloud)
+- `api.frenzynets.com` → proxied (orange cloud) if you use the API subdomain
+- `vpn.frenzynets.com` → DNS-only (gray cloud) for WireGuard UDP
+
+## Production checklist
+
+- [ ] Cloudflare origin certs mounted at `/etc/ssl/cloudflare/origin.pem` and `/etc/ssl/cloudflare/origin.key`
+- [ ] `JWT_SECRET` set to a long random string
+- [ ] `POSTGRES_PASSWORD` rotated and stored securely
+- [ ] `WG_SERVER_PUBLIC_KEY` set from `wg show wg0 public-key`
+- [ ] `WG_ADDRESS_POOL` configured and not overlapping existing subnets
+- [ ] `ADMIN_EMAIL`/`ADMIN_PASSWORD` set for first-run bootstrap
+- [ ] `wg0.conf` secured and backed up
+- [ ] WireGuard UDP port (51820) open to the internet
