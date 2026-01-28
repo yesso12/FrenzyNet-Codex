@@ -5,8 +5,12 @@ import RegisterPage from './RegisterPage';
 import DashboardPage from './DashboardPage';
 import TermsPage from './TermsPage';
 import AcceptableUsePage from './AcceptableUsePage';
+import LandingPage from './LandingPage';
+import AccountPage from './AccountPage';
+import AdminPage from './AdminPage';
+import OwnerPage from './OwnerPage';
 import Layout from '../components/Layout';
-import { getToken } from '../services/auth';
+import { getProfile, getToken } from '../services/auth';
 
 const PrivateRoute = ({ children }) => {
   if (!getToken()) {
@@ -15,11 +19,22 @@ const PrivateRoute = ({ children }) => {
   return children;
 };
 
+const RoleRoute = ({ roles, children }) => {
+  const profile = getProfile();
+  if (!profile) {
+    return <Navigate to="/login" replace />;
+  }
+  if (!roles.includes(profile.role)) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return children;
+};
+
 export default function App() {
   return (
     <Layout>
       <Routes>
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/terms" element={<TermsPage />} />
@@ -30,6 +45,30 @@ export default function App() {
             <PrivateRoute>
               <DashboardPage />
             </PrivateRoute>
+          }
+        />
+        <Route
+          path="/account"
+          element={
+            <PrivateRoute>
+              <AccountPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <RoleRoute roles={["admin", "owner"]}>
+              <AdminPage />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/owner"
+          element={
+            <RoleRoute roles={["owner"]}>
+              <OwnerPage />
+            </RoleRoute>
           }
         />
       </Routes>

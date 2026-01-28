@@ -32,13 +32,21 @@ public class AdminBootstrapper : IHostedService
         using var scope = _serviceProvider.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var hasher = scope.ServiceProvider.GetRequiredService<PasswordHasher>();
+        var subscriptions = scope.ServiceProvider.GetRequiredService<SubscriptionService>();
 
-        var existing = await db.Users.FirstOrDefaultAsync(u => u.Email == email, cancellationToken);
+        var existing = await db.Users.Include(u => u.Subscription).FirstOrDefaultAsync(u => u.Email == email, cancellationToken);
         if (existing is not null)
         {
-            if (existing.Role != "admin")
+            if (!string.Equals(existing.Role, "admin", StringComparison.OrdinalIgnoreCase))
             {
                 existing.Role = "admin";
+                await db.SaveChangesAsync(cancellationToken);
+            }
+
+            if (existing.Subscription is null)
+            {
+                var subscription = await subscriptions.CreateDefaultAsync(existing, cancellationToken);
+                existing.SubscriptionId = subscription.Id;
                 await db.SaveChangesAsync(cancellationToken);
             }
 
@@ -46,16 +54,22 @@ public class AdminBootstrapper : IHostedService
             return;
         }
 
-        db.Users.Add(new User
+        var user = new User
         {
             Email = email.Trim(),
             Username = username.Trim(),
             PasswordHash = hasher.Hash(password),
             Role = "admin",
-            DeviceLimit = 99
-        });
+            AcceptedTerms = true
+        };
 
+        db.Users.Add(user);
         await db.SaveChangesAsync(cancellationToken);
+
+        var defaultSubscription = await subscriptions.CreateDefaultAsync(user, cancellationToken);
+        user.SubscriptionId = defaultSubscription.Id;
+        await db.SaveChangesAsync(cancellationToken);
+
         _logger.LogInformation("Admin bootstrap: admin user created.");
     }
 

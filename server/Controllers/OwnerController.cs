@@ -1,6 +1,5 @@
 using FrenzyNet.Api.Contracts;
 using FrenzyNet.Api.Data;
-using FrenzyNet.Api.Models;
 using FrenzyNet.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -9,46 +8,33 @@ using Microsoft.EntityFrameworkCore;
 namespace FrenzyNet.Api.Controllers;
 
 [ApiController]
-[Authorize(Roles = "admin,owner")]
-[Route("api/admin")]
-public class AdminController : ControllerBase
+[Authorize(Roles = "owner")]
+[Route("api/owner")]
+public class OwnerController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly AuditLogger _audit;
 
-    public AdminController(AppDbContext db, AuditLogger audit)
+    public OwnerController(AppDbContext db, AuditLogger audit)
     {
         _db = db;
         _audit = audit;
     }
 
-    [HttpGet("users")]
-    public async Task<ActionResult<IEnumerable<User>>> GetUsers()
+    [HttpPatch("users/{userId:guid}/role")]
+    public async Task<IActionResult> UpdateUserRole(Guid userId, UpdateUserRoleRequest request)
     {
-        var users = await _db.Users
-            .Include(u => u.Subscription)
-            .OrderBy(u => u.CreatedAt)
-            .ToListAsync();
-        return Ok(users.Select(u => new
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId);
+        if (user is null)
         {
-            u.Id,
-            u.Email,
-            u.Username,
-            u.Role,
-            u.CreatedAt,
-            u.AcceptedTerms,
-            Subscription = u.Subscription == null
-                ? null
-                : new
-                {
-                    u.Subscription.Id,
-                    u.Subscription.PlanName,
-                    u.Subscription.PricePerDevice,
-                    u.Subscription.MaxDevices,
-                    u.Subscription.DeviceCount,
-                    u.Subscription.Status
-                }
-        }));
+            return NotFound();
+        }
+
+        user.Role = request.Role.Trim().ToLowerInvariant();
+        await _db.SaveChangesAsync();
+        await _audit.LogAsync(GetActorId(), "owner_role_update", $"User {userId} role changed to {user.Role}.");
+
+        return NoContent();
     }
 
     [HttpPatch("subscriptions/{subscriptionId:guid}")]
@@ -81,7 +67,7 @@ public class AdminController : ControllerBase
         }
 
         await _db.SaveChangesAsync();
-        await _audit.LogAsync(GetActorId(), "admin_subscription_update", $"Subscription {subscriptionId} updated.");
+        await _audit.LogAsync(GetActorId(), "owner_subscription_update", $"Subscription {subscriptionId} updated.");
 
         return NoContent();
     }

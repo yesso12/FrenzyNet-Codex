@@ -19,9 +19,11 @@ public class User
     [Required]
     public string Role { get; set; } = "user";
 
-    public int DeviceCount { get; set; }
+    public Guid? SubscriptionId { get; set; }
 
-    public int? DeviceLimit { get; set; }
+    public Subscription? Subscription { get; set; }
+
+    public bool AcceptedTerms { get; set; }
 
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 

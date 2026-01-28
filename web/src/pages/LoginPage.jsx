@@ -59,7 +59,7 @@ export default function LoginPage() {
         </form>
         <p className="mt-4 text-xs text-slate-400">
           Need an account?{' '}
-          <Link className="text-accent" to="/register">
+          <Link className="text-violet-300" to="/register">
             Register
           </Link>
         </p>

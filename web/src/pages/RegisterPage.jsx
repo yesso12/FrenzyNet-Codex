@@ -10,6 +10,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [acceptTerms, setAcceptTerms] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -20,7 +21,7 @@ export default function RegisterPage() {
     try {
       const data = await apiRequest('/auth/register', {
         method: 'POST',
-        body: JSON.stringify({ email, username, password })
+        body: JSON.stringify({ email, username, password, acceptTerms })
       });
       setToken(data.token, { username: data.username, role: data.role });
       navigate('/dashboard');
@@ -62,6 +63,24 @@ export default function RegisterPage() {
               onChange={(event) => setPassword(event.target.value)}
             />
           </div>
+          <label className="flex items-start gap-2 text-xs text-slate-400">
+            <input
+              type="checkbox"
+              className="mt-1"
+              checked={acceptTerms}
+              onChange={(event) => setAcceptTerms(event.target.checked)}
+            />
+            <span>
+              I agree to the{' '}
+              <Link className="text-violet-300" to="/terms">
+                Terms of Service
+              </Link>{' '}
+              and{' '}
+              <Link className="text-violet-300" to="/acceptable-use">
+                Acceptable Use Policy
+              </Link>.
+            </span>
+          </label>
           {error && <p className="text-sm text-red-400">{error}</p>}
           <PrimaryButton className="w-full" type="submit" disabled={loading}>
             {loading ? 'Creating...' : 'Create account'}
@@ -69,7 +88,7 @@ export default function RegisterPage() {
         </form>
         <p className="mt-4 text-xs text-slate-400">
           Already have an account?{' '}
-          <Link className="text-accent" to="/login">
+          <Link className="text-violet-300" to="/login">
             Log in
           </Link>
         </p>

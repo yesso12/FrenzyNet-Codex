@@ -14,35 +14,35 @@ public class WireGuardService
         _configuration = configuration;
     }
 
-    public Task<(string Config, string PublicKey)> ProvisionAsync(Guid userId, string deviceName, string ipAddress)
+    public Task<(string Config, string PublicKey)> ProvisionAsync(Guid userId, string deviceName, string ipAddress, Guid deviceId)
     {
         var scriptPath = GetScriptPath();
-        return RunScriptAsync(scriptPath, "add", userId.ToString(), deviceName, ipAddress);
+        return RunScriptAsync(scriptPath, "add", userId.ToString(), deviceName, ipAddress, deviceId.ToString());
     }
 
-    public async Task<(string Config, string PublicKey)> RotateAsync(Guid userId, string deviceName, string ipAddress, string oldPublicKey)
+    public async Task<(string Config, string PublicKey)> RotateAsync(Guid userId, string deviceName, string ipAddress, string oldPublicKey, Guid deviceId)
     {
         var scriptPath = GetScriptPath();
-        await RunScriptWithoutResponseAsync(scriptPath, "remove", userId.ToString(), oldPublicKey, ipAddress);
-        return await RunScriptAsync(scriptPath, "add", userId.ToString(), deviceName, ipAddress);
+        await RunScriptWithoutResponseAsync(scriptPath, "remove", userId.ToString(), oldPublicKey, ipAddress, deviceId.ToString());
+        return await RunScriptAsync(scriptPath, "add", userId.ToString(), deviceName, ipAddress, deviceId.ToString());
     }
 
-    public Task RemoveAsync(Guid userId, string publicKey, string ipAddress)
+    public Task RemoveAsync(Guid userId, string publicKey, string ipAddress, Guid deviceId)
     {
         var scriptPath = GetScriptPath();
-        return RunScriptWithoutResponseAsync(scriptPath, "remove", userId.ToString(), publicKey, ipAddress);
+        return RunScriptWithoutResponseAsync(scriptPath, "remove", userId.ToString(), publicKey, ipAddress, deviceId.ToString());
     }
 
     private string GetScriptPath() => _configuration["WG_SCRIPT_PATH"] ?? "/usr/local/bin/wg-manage.sh";
 
-    private async Task<(string Config, string PublicKey)> RunScriptAsync(string scriptPath, string command, string arg1, string arg2, string arg3)
+    private async Task<(string Config, string PublicKey)> RunScriptAsync(string scriptPath, string command, string arg1, string arg2, string arg3, string arg4)
     {
         var process = new Process
         {
             StartInfo = new ProcessStartInfo
             {
                 FileName = scriptPath,
-                ArgumentList = { command, arg1, arg2, arg3 },
+                ArgumentList = { command, arg1, arg2, arg3, arg4 },
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false
@@ -76,14 +76,14 @@ public class WireGuardService
         return (parsed.Config, parsed.PublicKey);
     }
 
-    private async Task RunScriptWithoutResponseAsync(string scriptPath, string command, string arg1, string arg2, string arg3)
+    private async Task RunScriptWithoutResponseAsync(string scriptPath, string command, string arg1, string arg2, string arg3, string arg4)
     {
         var process = new Process
         {
             StartInfo = new ProcessStartInfo
             {
                 FileName = scriptPath,
-                ArgumentList = { command, arg1, arg2, arg3 },
+                ArgumentList = { command, arg1, arg2, arg3, arg4 },
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false

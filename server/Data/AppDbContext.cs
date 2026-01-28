@@ -11,6 +11,7 @@ public class AppDbContext : DbContext
 
     public DbSet<User> Users => Set<User>();
     public DbSet<Device> Devices => Set<Device>();
+    public DbSet<Subscription> Subscriptions => Set<Subscription>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -19,7 +20,10 @@ public class AppDbContext : DbContext
         {
             entity.HasIndex(u => u.Email).IsUnique();
             entity.HasIndex(u => u.Username).IsUnique();
-            entity.Property(u => u.DeviceCount).HasDefaultValue(0);
+            entity.Property(u => u.AcceptedTerms).HasDefaultValue(false);
+            entity.HasOne(u => u.Subscription)
+                .WithOne(s => s.User)
+                .HasForeignKey<Subscription>(s => s.UserId);
         });
 
         modelBuilder.Entity<Device>(entity =>
@@ -28,6 +32,17 @@ public class AppDbContext : DbContext
             entity.HasOne(d => d.User)
                 .WithMany(u => u.Devices)
                 .HasForeignKey(d => d.UserId);
+            entity.HasOne(d => d.Subscription)
+                .WithMany()
+                .HasForeignKey(d => d.SubscriptionId);
+        });
+
+        modelBuilder.Entity<Subscription>(entity =>
+        {
+            entity.HasIndex(s => s.UserId).IsUnique();
+            entity.Property(s => s.DeviceCount).HasDefaultValue(0);
+            entity.Property(s => s.MaxDevices).HasDefaultValue(3);
+            entity.Property(s => s.Status).HasDefaultValue("active");
         });
     }
 }

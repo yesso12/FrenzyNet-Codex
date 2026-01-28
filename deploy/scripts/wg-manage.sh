@@ -5,6 +5,7 @@ COMMAND=${1:-}
 USER_ID=${2:-}
 ARG=${3:-}
 IP_ADDRESS=${4:-}
+DEVICE_ID=${5:-}
 
 WG_INTERFACE=${WG_INTERFACE:-wg0}
 WG_CONFIG=${WG_CONFIG:-/etc/wireguard/${WG_INTERFACE}.conf}
@@ -12,6 +13,7 @@ WG_ENDPOINT=${WG_ENDPOINT:-vpn.example.com:51820}
 WG_DNS=${WG_DNS:-1.1.1.1}
 WG_ALLOWED_IPS=${WG_ALLOWED_IPS:-0.0.0.0/0,::/0}
 WG_SERVER_PUBLIC_KEY=${WG_SERVER_PUBLIC_KEY:-}
+WG_MTU=${WG_MTU:-1420}
 LOCK_FILE="${WG_CONFIG}.lock"
 
 require_cmd() {
@@ -25,8 +27,8 @@ require_cmd wg
 require_cmd wg-quick
 require_cmd jq
 
-if [[ -z "$COMMAND" || -z "$USER_ID" || -z "$ARG" || -z "$IP_ADDRESS" ]]; then
-  echo "Usage: $0 <add|remove> <user-id> <device-name|public-key> <ip-address>" >&2
+if [[ -z "$COMMAND" || -z "$USER_ID" || -z "$ARG" || -z "$IP_ADDRESS" || -z "$DEVICE_ID" ]]; then
+  echo "Usage: $0 <add|remove> <user-id> <device-name|public-key> <ip-address> <device-id>" >&2
   exit 1
 fi
 
@@ -56,7 +58,7 @@ append_peer() {
 
   cat <<EOM >> "$WG_CONFIG"
 
-# FrenzyNet user ${USER_ID} device ${device_name}
+# FrenzyNet user ${USER_ID} device ${DEVICE_ID} ${device_name}
 [Peer]
 PublicKey = ${public_key}
 AllowedIPs = ${ip}/32
@@ -70,6 +72,7 @@ EOM
 PrivateKey = ${private_key}
 Address = ${ip}/32
 DNS = ${WG_DNS}
+MTU = ${WG_MTU}
 
 [Peer]
 PublicKey = ${WG_SERVER_PUBLIC_KEY}

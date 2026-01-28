@@ -32,7 +32,9 @@ builder.Services.AddScoped<JwtService>();
 builder.Services.AddScoped<AuditLogger>();
 builder.Services.AddScoped<WireGuardService>();
 builder.Services.AddScoped<IpAllocator>();
+builder.Services.AddScoped<SubscriptionService>();
 
+builder.Services.AddHostedService<OwnerBootstrapper>();
 builder.Services.AddHostedService<AdminBootstrapper>();
 builder.Services.AddHostedService<WireGuardValidator>();
 

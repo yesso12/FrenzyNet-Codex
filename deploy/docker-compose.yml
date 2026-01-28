@@ -36,9 +36,13 @@ services:
       WG_ADDRESS_POOL: ${WG_ADDRESS_POOL}
       WG_ALLOWED_IPS: ${WG_ALLOWED_IPS}
       WG_DNS: ${WG_DNS}
+      WG_MTU: ${WG_MTU}
       ADMIN_EMAIL: ${ADMIN_EMAIL}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       ADMIN_USERNAME: ${ADMIN_USERNAME}
+      OWNER_EMAIL: ${OWNER_EMAIL}
+      OWNER_PASSWORD: ${OWNER_PASSWORD}
+      OWNER_BOOTSTRAP: ${OWNER_BOOTSTRAP}
     volumes:
       - ./deploy/scripts/wg-manage.sh:/usr/local/bin/wg-manage.sh:ro
       - /etc/wireguard:/etc/wireguard

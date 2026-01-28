@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 
 namespace FrenzyNet.Api.Controllers;
 
@@ -19,21 +18,31 @@ public class AuthController : ControllerBase
     private readonly PasswordHasher _hasher;
     private readonly JwtService _jwt;
     private readonly AuditLogger _audit;
-    private readonly BillingOptions _billingOptions;
+    private readonly SubscriptionService _subscriptions;
 
-    public AuthController(AppDbContext db, PasswordHasher hasher, JwtService jwt, AuditLogger audit, IOptions<BillingOptions> billingOptions)
+    public AuthController(
+        AppDbContext db,
+        PasswordHasher hasher,
+        JwtService jwt,
+        AuditLogger audit,
+        SubscriptionService subscriptions)
     {
         _db = db;
         _hasher = hasher;
         _jwt = jwt;
         _audit = audit;
-        _billingOptions = billingOptions.Value;
+        _subscriptions = subscriptions;
     }
 
     [HttpPost("register")]
     [EnableRateLimiting("auth")]
     public async Task<ActionResult<AuthResponse>> Register(RegisterRequest request)
     {
+        if (!request.AcceptTerms)
+        {
+            return BadRequest("Terms of Service must be accepted.");
+        }
+
         if (await _db.Users.AnyAsync(u => u.Email == request.Email || u.Username == request.Username))
         {
             return Conflict("Email or username already exists.");
@@ -43,10 +52,15 @@ public class AuthController : ControllerBase
         {
             Email = request.Email.Trim(),
             Username = request.Username.Trim(),
-            PasswordHash = _hasher.Hash(request.Password)
+            PasswordHash = _hasher.Hash(request.Password),
+            AcceptedTerms = true
         };
 
         _db.Users.Add(user);
+        await _db.SaveChangesAsync();
+
+        var subscription = await _subscriptions.CreateDefaultAsync(user);
+        user.SubscriptionId = subscription.Id;
         await _db.SaveChangesAsync();
 
         await _audit.LogAsync(user.Id, "register", $"User {user.Username} registered.");
@@ -83,13 +97,25 @@ public class AuthController : ControllerBase
             return Unauthorized();
         }
 
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == Guid.Parse(userId));
-        if (user is null)
+        var user = await _db.Users.Include(u => u.Subscription).FirstOrDefaultAsync(u => u.Id == Guid.Parse(userId));
+        if (user is null || user.Subscription is null)
         {
             return NotFound();
         }
 
-        var limit = user.DeviceLimit ?? _billingOptions.DefaultDeviceLimit;
-        return Ok(new MeResponse(user.Id, user.Email, user.Username, user.Role, user.DeviceCount, limit));
+        var subscription = user.Subscription;
+        return Ok(new MeResponse(
+            user.Id,
+            user.Email,
+            user.Username,
+            user.Role,
+            user.AcceptedTerms,
+            new SubscriptionSummary(
+                subscription.Id,
+                subscription.PlanName,
+                subscription.PricePerDevice,
+                subscription.MaxDevices,
+                subscription.DeviceCount,
+                subscription.Status)));
     }
 }

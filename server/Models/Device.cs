@@ -12,6 +12,11 @@ public class Device
     public User? User { get; set; }
 
     [Required]
+    public Guid SubscriptionId { get; set; }
+
+    public Subscription? Subscription { get; set; }
+
+    [Required]
     public string Name { get; set; } = string.Empty;
 
     [Required]

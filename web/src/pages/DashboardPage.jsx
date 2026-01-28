@@ -6,7 +6,7 @@ import { authHeaders, getProfile } from '../services/auth';
 
 export default function DashboardPage() {
   const profile = getProfile();
-  const [usage, setUsage] = useState({ count: 0, limit: 0 });
+  const [subscription, setSubscription] = useState(null);
   const [devices, setDevices] = useState([]);
   const [deviceName, setDeviceName] = useState('');
   const [config, setConfig] = useState('');
@@ -24,10 +24,10 @@ export default function DashboardPage() {
     }
   };
 
-  const loadUsage = async () => {
+  const loadProfile = async () => {
     try {
       const data = await apiRequest('/me', { headers: authHeaders() });
-      setUsage({ count: data.deviceCount, limit: data.deviceLimit });
+      setSubscription(data.subscription);
     } catch (err) {
       setError(err.message);
     }
@@ -35,7 +35,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     loadDevices();
-    loadUsage();
+    loadProfile();
   }, []);
 
   useEffect(() => {
@@ -63,7 +63,7 @@ export default function DashboardPage() {
       setSelectedDevice({ id: data.id, name: deviceName });
       setDeviceName('');
       await loadDevices();
-      await loadUsage();
+      await loadProfile();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -82,7 +82,7 @@ export default function DashboardPage() {
         headers: authHeaders()
       });
       await loadDevices();
-      await loadUsage();
+      await loadProfile();
     } catch (err) {
       setError(err.message);
     }
@@ -133,9 +133,13 @@ export default function DashboardPage() {
             <p className="text-sm text-slate-300">
               Add a new device to generate a WireGuard configuration and QR code.
             </p>
-            <p className="mt-2 text-xs text-slate-500">
-              Devices used: {usage.count} / {usage.limit || '—'}
-            </p>
+            {subscription && (
+              <p className="mt-2 text-xs text-slate-500">
+                Plan: {subscription.planName} • Status: {subscription.status} • $
+                {subscription.pricePerDevice.toFixed(2)} / device • {subscription.deviceCount}/
+                {subscription.maxDevices} devices
+              </p>
+            )}
             <div className="mt-4 flex flex-col gap-3 sm:flex-row">
               <input
                 className="flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm"

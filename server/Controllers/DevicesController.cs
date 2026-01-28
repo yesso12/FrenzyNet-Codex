@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Options;
 using QRCoder;
 
 namespace FrenzyNet.Api.Controllers;
@@ -22,22 +21,14 @@ public class DevicesController : ControllerBase
     private readonly AuditLogger _audit;
     private readonly IpAllocator _ipAllocator;
     private readonly IMemoryCache _cache;
-    private readonly BillingOptions _billingOptions;
 
-    public DevicesController(
-        AppDbContext db,
-        WireGuardService wireGuard,
-        AuditLogger audit,
-        IpAllocator ipAllocator,
-        IMemoryCache cache,
-        IOptions<BillingOptions> billingOptions)
+    public DevicesController(AppDbContext db, WireGuardService wireGuard, AuditLogger audit, IpAllocator ipAllocator, IMemoryCache cache)
     {
         _db = db;
         _wireGuard = wireGuard;
         _audit = audit;
         _ipAllocator = ipAllocator;
         _cache = cache;
-        _billingOptions = billingOptions.Value;
     }
 
     [HttpGet]
@@ -72,34 +63,42 @@ public class DevicesController : ControllerBase
             return Conflict("Device name already exists.");
         }
 
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId);
-        if (user is null)
+        var user = await _db.Users.Include(u => u.Subscription).FirstOrDefaultAsync(u => u.Id == userId);
+        if (user is null || user.Subscription is null)
         {
             return Unauthorized();
         }
 
-        if (!string.Equals(user.Role, "admin", StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(user.Role, "admin", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(user.Role, "owner", StringComparison.OrdinalIgnoreCase))
         {
-            var limit = user.DeviceLimit ?? _billingOptions.DefaultDeviceLimit;
-            if (user.DeviceCount >= limit)
+            if (!string.Equals(user.Subscription.Status, "active", StringComparison.OrdinalIgnoreCase))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, "Subscription is not active.");
+            }
+
+            if (user.Subscription.DeviceCount >= user.Subscription.MaxDevices)
             {
                 return StatusCode(StatusCodes.Status403Forbidden, "Device limit reached.");
             }
         }
 
+        var deviceId = Guid.NewGuid();
         var ipAddress = await _ipAllocator.AllocateAsync();
-        var (config, publicKey) = await _wireGuard.ProvisionAsync(userId, request.Name.Trim(), ipAddress);
+        var (config, publicKey) = await _wireGuard.ProvisionAsync(userId, request.Name.Trim(), ipAddress, deviceId);
 
         var device = new Device
         {
+            Id = deviceId,
             UserId = userId,
+            SubscriptionId = user.Subscription.Id,
             Name = request.Name.Trim(),
             PublicKey = publicKey,
             IpAddress = ipAddress
         };
 
         _db.Devices.Add(device);
-        user.DeviceCount += 1;
+        user.Subscription.DeviceCount += 1;
         await _db.SaveChangesAsync();
 
         CacheConfig(device.Id, config);
@@ -143,7 +142,8 @@ public class DevicesController : ControllerBase
     public async Task<IActionResult> RevokeDevice(Guid deviceId)
     {
         var userId = GetUserId();
-        var device = await _db.Devices.FirstOrDefaultAsync(d => d.Id == deviceId && d.UserId == userId);
+        var device = await _db.Devices.Include(d => d.Subscription)
+            .FirstOrDefaultAsync(d => d.Id == deviceId && d.UserId == userId);
         if (device is null)
         {
             return NotFound();
@@ -159,13 +159,12 @@ public class DevicesController : ControllerBase
             return BadRequest("Device is missing an IP address.");
         }
 
-        await _wireGuard.RemoveAsync(userId, device.PublicKey, device.IpAddress);
+        await _wireGuard.RemoveAsync(userId, device.PublicKey, device.IpAddress, device.Id);
         device.RevokedAt = DateTimeOffset.UtcNow;
         device.IpAddress = null;
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId);
-        if (user is not null && user.DeviceCount > 0)
+        if (device.Subscription is not null && device.Subscription.DeviceCount > 0)
         {
-            user.DeviceCount -= 1;
+            device.Subscription.DeviceCount -= 1;
         }
         await _db.SaveChangesAsync();
         _cache.Remove(CacheKey(device.Id));
@@ -193,7 +192,7 @@ public class DevicesController : ControllerBase
             throw new InvalidOperationException("Device is missing an IP address.");
         }
 
-        var (config, publicKey) = await _wireGuard.RotateAsync(device.UserId, device.Name, device.IpAddress, device.PublicKey);
+        var (config, publicKey) = await _wireGuard.RotateAsync(device.UserId, device.Name, device.IpAddress, device.PublicKey, device.Id);
         device.PublicKey = publicKey;
         await _db.SaveChangesAsync();
 

@@ -2,7 +2,13 @@
 
 ## Environment
 
-Copy `.env.example` to `.env` and set values:
+Copy `.env.example` to `.env` and set values, or generate one:
+
+```bash
+./deploy/gen-env.sh
+```
+
+Required values:
 
 - `DOMAIN`
 - `JWT_SECRET`
@@ -12,8 +18,12 @@ Copy `.env.example` to `.env` and set values:
 - `WG_ADDRESS_POOL`
 - `WG_ALLOWED_IPS`
 - `WG_DNS`
+- `WG_MTU`
 - `ADMIN_EMAIL`
 - `ADMIN_PASSWORD`
+- `OWNER_EMAIL`
+- `OWNER_PASSWORD`
+- `OWNER_BOOTSTRAP`
 
 ## One-command deploy
 
@@ -22,6 +32,12 @@ Copy `.env.example` to `.env` and set values:
 ```
 
 The API is served under `https://frenzynets.com/api`.
+
+## Fresh VPS install
+
+```bash
+sudo ./deploy/install.sh
+```
 
 ## Database schema
 
@@ -43,6 +59,18 @@ The API container mounts `/etc/wireguard` from the host and calls
 
 `wg-manage.sh` appends new peers to `wg0.conf` and avoids storing private keys.
 
+## Owner bootstrap
+
+To create the initial owner account, set these in `.env`:
+
+```
+OWNER_BOOTSTRAP=true
+OWNER_EMAIL=trimbledustn@gmail.com
+OWNER_PASSWORD=your-strong-password
+```
+
+After the first successful run, set `OWNER_BOOTSTRAP=false`.
+
 ## Cloudflare DNS records
 
 - `frenzynets.com` → proxied (orange cloud)
@@ -56,6 +84,6 @@ The API container mounts `/etc/wireguard` from the host and calls
 - [ ] `POSTGRES_PASSWORD` rotated and stored securely
 - [ ] `WG_SERVER_PUBLIC_KEY` set from `wg show wg0 public-key`
 - [ ] `WG_ADDRESS_POOL` configured and not overlapping existing subnets
-- [ ] `ADMIN_EMAIL`/`ADMIN_PASSWORD` set for first-run bootstrap
+- [ ] `OWNER_BOOTSTRAP` run once and disabled
 - [ ] `wg0.conf` secured and backed up
 - [ ] WireGuard UDP port (51820) open to the internet
