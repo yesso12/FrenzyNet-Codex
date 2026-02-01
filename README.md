@@ -48,6 +48,12 @@ then download WireGuard VPN configs.
 - QR code support
 - Admin controls
 
+## Quick start
+```bash
+./gen-env.sh
+./deploy/deploy.sh
+```
+
 # Production checklist
 
 - [ ] Cloudflare origin certs mounted at `/etc/ssl/cloudflare/origin.pem` and `/etc/ssl/cloudflare/origin.key`

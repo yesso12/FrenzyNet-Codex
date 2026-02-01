@@ -6,6 +6,8 @@ Copy `.env.example` to `.env` and set values, or generate one:
 
 ```bash
 ./deploy/gen-env.sh
+# or from repo root
+./gen-env.sh
 ```
 
 Required values:
